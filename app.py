@@ -9,7 +9,7 @@ def get_next_dates(ref_ex_str, ref_pay_str, interval_months=3):
     today = datetime.now()
     curr_ex = datetime.strptime(ref_ex_str, '%m/%d/%Y')
     curr_pay = datetime.strptime(ref_pay_str, '%m/%d/%Y')
-    # Advance to the future
+    # Strictly advance in 3-month (or interval) increments per constraints
     while curr_ex <= today:
         curr_ex += rd.relativedelta(months=interval_months)
         curr_pay += rd.relativedelta(months=interval_months)
@@ -22,20 +22,20 @@ def get_30_360_days(start, end):
     if end.month == 2 and (end + timedelta(days=1)).month == 3: d2 = 30
     return (end.year - start.year) * 360 + (end.month - start.month) * 30 + (d2 - d1)
 
-# --- 2. FIXED-RATE DATASET (Extracted from Spreadsheet & Search) ---
-# Tickers identified as Fixed-Rate (no floating spread/start date)
+# --- 2. FIXED-RATE DATASET (Synced to Spreadsheet 2026 Dates) ---
+# Updated anchors to match May 29th/April 15th requirements
 FIXED_DATA = {
-    'NLY-J':  {'coupon': 0.08875, 'yahoo': 'NLY-PJ',  'ref_ex': '03/31/2024', 'ref_pay': '04/30/2024', 'freq': 3},
-    'AGNCZ':  {'coupon': 0.08750, 'yahoo': 'AGNCZ',   'ref_ex': '04/01/2024', 'ref_pay': '04/15/2024', 'freq': 3},
-    'ARR-C':  {'coupon': 0.07000, 'yahoo': 'ARR-PC',  'ref_ex': '04/15/2024', 'ref_pay': '04/29/2024', 'freq': 1}, # Monthly
-    'FBRT-E': {'coupon': 0.07500, 'yahoo': 'FBRT-PE', 'ref_ex': '03/31/2024', 'ref_pay': '04/10/2024', 'freq': 3},
-    'RITM-E': {'coupon': 0.08750, 'yahoo': 'RITM-PE', 'ref_ex': '04/01/2024', 'ref_pay': '04/30/2024', 'freq': 3},
-    'PMT-C':  {'coupon': 0.06750, 'yahoo': 'PMT-PC',  'ref_ex': '04/15/2024', 'ref_pay': '04/30/2024', 'freq': 3},
-    'MFA-B':  {'coupon': 0.07500, 'yahoo': 'MFA-PB',  'ref_ex': '03/03/2024', 'ref_pay': '03/31/2024', 'freq': 3},
-    'CIM-A':  {'coupon': 0.08000, 'yahoo': 'CIM-PA',  'ref_ex': '03/01/2024', 'ref_pay': '03/30/2024', 'freq': 3},
-    'ADAMZ':  {'coupon': 0.07000, 'yahoo': 'ADAMZ',   'ref_ex': '04/01/2024', 'ref_pay': '04/15/2024', 'freq': 3},
-    'MITT-A': {'coupon': 0.08250, 'yahoo': 'MITT-PA', 'ref_ex': '03/31/2024', 'ref_pay': '04/30/2024', 'freq': 3},
-    'MITT-B': {'coupon': 0.08000, 'yahoo': 'MITT-PB', 'ref_ex': '03/31/2024', 'ref_pay': '04/30/2024', 'freq': 3}
+    'NLY-J':  {'coupon': 0.08875, 'yahoo': 'NLY-PJ',  'ref_ex': '06/01/2026', 'ref_pay': '06/30/2026', 'freq': 3},
+    'AGNCZ':  {'coupon': 0.08750, 'yahoo': 'AGNCZ',   'ref_ex': '07/01/2026', 'ref_pay': '07/15/2026', 'freq': 3},
+    'ARR-C':  {'coupon': 0.07000, 'yahoo': 'ARR-PC',  'ref_ex': '04/15/2026', 'ref_pay': '04/30/2026', 'freq': 1}, 
+    'FBRT-E': {'coupon': 0.07500, 'yahoo': 'FBRT-PE', 'ref_ex': '06/30/2026', 'ref_pay': '07/10/2026', 'freq': 3},
+    'RITM-E': {'coupon': 0.08750, 'yahoo': 'RITM-PE', 'ref_ex': '05/01/2026', 'ref_pay': '05/29/2026', 'freq': 3},
+    'PMT-C':  {'coupon': 0.06750, 'yahoo': 'PMT-PC',  'ref_ex': '05/29/2026', 'ref_pay': '06/15/2026', 'freq': 3},
+    'MFA-B':  {'coupon': 0.07500, 'yahoo': 'MFA-PB',  'ref_ex': '06/03/2026', 'ref_pay': '06/30/2026', 'freq': 3},
+    'CIM-A':  {'coupon': 0.08000, 'yahoo': 'CIM-PA',  'ref_ex': '06/01/2026', 'ref_pay': '06/30/2026', 'freq': 3},
+    'ADAMZ':  {'coupon': 0.07000, 'yahoo': 'ADAMZ',   'ref_ex': '07/01/2026', 'ref_pay': '07/15/2026', 'freq': 3},
+    'MITT-A': {'coupon': 0.08250, 'yahoo': 'MITT-PA', 'ref_ex': '05/29/2026', 'ref_pay': '06/17/2026', 'freq': 3},
+    'MITT-B': {'coupon': 0.08000, 'yahoo': 'MITT-PB', 'ref_ex': '05/29/2026', 'ref_pay': '06/17/2026', 'freq': 3}
 }
 
 # --- 3. UI SETUP ---
@@ -54,24 +54,21 @@ today = datetime.now()
 rows = []
 
 for ticker, info in FIXED_DATA.items():
-    # 1. Fetch Price
     try:
         price = float(yf.Ticker(info['yahoo']).history(period="1d")['Close'].iloc[-1])
     except:
         price = 25.0
     
-    # 2. Get Next Dates
+    # Calculate Next Dates using 2026 anchors
     next_ex, next_pay = get_next_dates(info['ref_ex'], info['ref_pay'], info['freq'])
     
-    # 3. Calculate Accrued
+    # Calculate Accrued based on the start of the current period
     prior_ex = next_ex - rd.relativedelta(months=info['freq'])
     days_accrued = get_30_360_days(prior_ex, today.date())
     
-    # Yearly div = Coupon * $25
     annual_div = info['coupon'] * 25
     accrued = annual_div * (days_accrued / 360)
     
-    # 4. Yield Calculations
     clean_p = price - accrued
     yld = annual_div / clean_p if clean_p > 0 else 0
 
@@ -99,7 +96,7 @@ st.dataframe(
         "Coupon": st.column_config.NumberColumn(format="%.2f%%"),
         "Price": st.column_config.NumberColumn(format="$%.2f"),
         "Accrued": st.column_config.NumberColumn(format="$%.3f"),
-        "Full Div Amount": st.column_config.NumberColumn(format="$%.3f", help="Amount paid per cycle (Monthly or Quarterly)"),
+        "Full Div Amount": st.column_config.NumberColumn(format="$%.3f", help="Amount paid per cycle"),
         "Clean Price": st.column_config.NumberColumn(format="$%.2f"),
         "Current Yield": st.column_config.NumberColumn(format="%.2f%%"),
         "Next Ex-Div": st.column_config.DateColumn(format="MM/DD/YYYY"),
